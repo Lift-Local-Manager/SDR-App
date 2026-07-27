@@ -558,8 +558,6 @@ function renderPeriodTabs() {
 function setPeriod(p) { currentPeriod = p; renderPeriodTabs(); renderKpiGrid(REPS[currentRep], loadData(currentRep)); }
 
 function renderKpiGrid(rep, data) {
-  // Simple model: "today" shows dialsToday only (other metrics require daily granularity not tracked),
-  // "week"/"month" show month-to-date totals divided evenly as an approximation for week.
   let vals;
   if (currentPeriod === 'today') {
     vals = { dials: data.dialsToday||0, dms: '—', sets: '—', resets: '—', demos: '—', closes: '—' };
@@ -609,8 +607,6 @@ function saveManualEntry() {
 }
 
 /* ===================== CSV/XLSX UPLOAD ===================== */
-// Reads a team-wide Salesforce export. Rep name expected in column B, subtotal count in column D,
-// for the rows that are subtotal rows (one per rep group).
 function handleUpload(evt) {
   const file = evt.target.files[0];
   const metric = evt.target.getAttribute('data-metric');
@@ -658,8 +654,6 @@ function applyUploadRows(rows, metric) {
 }
 
 /* ===================== ZAPIER / GOOGLE SHEET SYNC ===================== */
-// Expects a published Google Sheet CSV with a header row containing rep, metric, and value columns
-// (any reasonable naming — auto-detected). One row per rep per metric, e.g. "Madi Hannett, Dials, 812".
 const METRIC_KEYWORDS = {
   dials: ['dial'],
   dms: ['decision', 'dm'],
@@ -789,8 +783,6 @@ function disconnectSalesforce() {
   showToast('Disconnected from Salesforce');
 }
 
-// Salesforce redirects back with the access token in the URL fragment (#access_token=...&instance_url=...).
-// This runs on load, before anything else touches the URL, and scrubs the token out of the address bar after storing it.
 function checkOAuthRedirect() {
   if (window.location.hash && window.location.hash.includes('access_token=')) {
     const params = new URLSearchParams(window.location.hash.substring(1));
@@ -855,8 +847,6 @@ function renderReportMapFields() {
       <select id="sfmap_${metric}"><option value="">— none —</option>${options}</select>`;
   }).join('');
 }
-// Before "Load My Reports" has been clicked this session, show saved report IDs as plain text fields
-// rather than an empty dropdown, so the mapping isn't lost between visits.
 function renderReportMapFieldsFromSaved() {
   const saved = JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}');
   if (Object.keys(saved).length && sfReportsList.length === 0) {
@@ -897,9 +887,6 @@ async function syncSalesforce() {
   showToast('Sync complete');
 }
 
-// Salesforce summary-report JSON groups rows under reportMetadata's first grouping (here, rep/owner).
-// groupingsDown.groupings[] gives each row's label + key; factMap["<key>!T"].aggregates[0].value is
-// that row's total record count — the same subtotal the manual CSV upload was already reading.
 function applySalesforceReportData(reportData, metric) {
   const repNameMap = {};
   Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
@@ -1043,7 +1030,6 @@ function parseAndStoreCallLog(rows) {
     let hour = null;
     let dateStr = null;
     if (typeof timeRaw === 'number') {
-      // Excel serial date/time
       const parsed = XLSX.SSF.parse_date_code(timeRaw);
       if (parsed && parsed.H !== undefined) hour = parsed.H;
       if (parsed && parsed.y) dateStr = parsed.y + '-' + parsed.m + '-' + parsed.d;
@@ -1097,7 +1083,6 @@ function bucketEntries(entries) {
   });
   return buckets;
 }
-// For each hour, how many distinct days did it rank in that day's top-3 DM rate hours
 function computeHotZoneConsistency(log) {
   const days = groupByDate(log);
   const dayKeys = Object.keys(days);
@@ -1113,7 +1098,6 @@ function computeHotZoneConsistency(log) {
   });
   return { hitCount, countedDays };
 }
-// For each hour, how many distinct days was total dial volume 0 (dead) or well below that day's average (slow)
 function computeSlowConsistency(log) {
   const days = groupByDate(log);
   const dayKeys = Object.keys(days);
