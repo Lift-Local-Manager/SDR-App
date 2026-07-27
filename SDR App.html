@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lift Local · SDR Command Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #08080f; color: #e2e8f0; font-family: -apple-system, 'Inter', system-ui, sans-serif; min-height: 100vh; padding-bottom: 80px; }
+  ::-webkit-scrollbar { display: none; }
+
+  /* HEADER */
+  .header { background: #0d0d16; border-bottom: 1px solid #1a1a2e; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .brand { font-size: 13px; font-weight: 800; letter-spacing: .1em; color: #fff; }
+  .brand span { color: #2563eb; }
+  .brand-sub { font-size: 9px; letter-spacing: .2em; color: #334155; margin-top: 2px; }
+  .header-date { font-size: 10px; color: #475569; letter-spacing: .08em; text-align: right; }
+
+  /* NAV */
+  .nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0d0d16; border-top: 1px solid #1a1a2e; display: flex; z-index: 100; }
+  .nav-btn { flex: 1; padding: 10px 4px 8px; background: none; border: none; color: #334155; font-size: 8px; letter-spacing: .08em; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: inherit; }
+  .nav-btn.active { color: #2563eb; font-weight: 700; }
+  .nav-icon { font-size: 17px; }
+
+  /* PAGES */
+  .page { padding: 16px 16px 0; display: none; max-width: 720px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* COMMON */
+  .section-label { font-size: 9px; letter-spacing: .22em; color: #334155; margin-bottom: 10px; font-weight: 700; }
+  .card { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .progress-wrap { height: 4px; background: #1a1a2e; border-radius: 2px; margin-bottom: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+  .divider { height: 1px; background: #1a1a2e; margin: 10px 0; }
+
+  /* REP CHIPS */
+  .rep-selector { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .rep-chip { flex-shrink: 0; padding: 8px 16px; border-radius: 20px; background: #0f0f1a; border: 1px solid #1a1a2e; color: #64748b; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .rep-chip.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .rep-role { font-size: 8px; opacity: .7; margin-left: 5px; }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi-box { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 10px; padding: 12px 8px; text-align: center; }
+  .kpi-label { font-size: 8px; letter-spacing: .1em; color: #475569; margin-bottom: 6px; font-weight: 700; }
+  .kpi-val { font-family: 'SF Mono', 'Courier New', monospace; font-size: 20px; font-weight: 800; color: #f1f5f9; }
+
+  .period-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .period-tab { flex: 1; padding: 7px; border-radius: 8px; background: #0f0f1a; border: 1px solid #1a1a2e; color: #475569; font-size: 10px; font-weight: 700; letter-spacing: .08em; cursor: pointer; font-family: inherit; }
+  .period-tab.active { background: #1a1a2e; color: #93c5fd; border-color: #2563eb; }
+
+  /* QUOTA CARD */
+  .quota-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .quota-label { font-size: 10px; letter-spacing: .1em; color: #64748b; font-weight: 700; }
+  .quota-pct { font-family: monospace; font-size: 11px; font-weight: 800; }
+
+  /* PACE ENGINE */
+  .pace-engine { background: linear-gradient(180deg,#111827,#0f0f1a); border: 1px solid #2563eb33; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .pace-title { font-size: 10px; letter-spacing: .18em; font-weight: 800; color: #60a5fa; margin-bottom: 10px; }
+  .pace-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; }
+  .pace-metric { font-size: 11px; color: #94a3b8; }
+  .pace-num { font-family: monospace; font-size: 15px; font-weight: 800; }
+
+  /* MISSION */
+  .mission-block { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .mission-title { font-size: 10px; letter-spacing: .18em; font-weight: 800; color: #f1f5f9; margin-bottom: 10px; }
+  .mission-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #14141f; }
+  .mission-row:last-child { border-bottom: none; }
+  .mission-label { font-size: 12px; color: #cbd5e1; }
+  .mission-val { font-family: monospace; font-size: 14px; font-weight: 800; color: #60a5fa; }
+
+  /* CONV CHAIN */
+  .conv-chain { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .conv-title { font-size: 9px; letter-spacing: .18em; font-weight: 800; color: #475569; margin-bottom: 10px; }
+  .conv-row { display: flex; justify-content: space-between; padding: 4px 0; }
+  .conv-label { font-size: 11px; color: #64748b; }
+  .conv-val { font-family: monospace; font-size: 11px; color: #cbd5e1; font-weight: 700; }
+
+  /* MOTIVATION */
+  .quote-card { background: linear-gradient(135deg,#111827,#0d0d16); border: 1px solid #2563eb33; border-radius: 14px; padding: 26px 20px; text-align: center; margin-bottom: 14px; }
+  .quote-text { font-size: 16px; font-weight: 700; color: #f1f5f9; line-height: 1.4; margin-bottom: 10px; }
+  .quote-attr { font-size: 10px; color: #475569; letter-spacing: .1em; }
+  .btn { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-size: 11px; font-weight: 700; letter-spacing: .05em; cursor: pointer; font-family: inherit; }
+  .btn.secondary { background: #1a1a2e; color: #93c5fd; }
+  .btn-row { display: flex; gap: 8px; }
+
+  /* FORMS */
+  label.field-label { display: block; font-size: 9px; letter-spacing: .1em; color: #475569; font-weight: 700; margin: 10px 0 5px; }
+  input, select { width: 100%; background: #14141f; border: 1px solid #1a1a2e; border-radius: 8px; padding: 10px; color: #e2e8f0; font-size: 13px; font-family: inherit; }
+  input:focus, select:focus { outline: none; border-color: #2563eb; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .upload-box { border: 1px dashed #2563eb55; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 10px; }
+  .upload-box input[type=file] { font-size: 10px; color: #64748b; }
+  .upload-label { font-size: 11px; font-weight: 700; color: #93c5fd; margin-bottom: 6px; }
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #16a34a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; z-index: 200; display: none; }
+
+  .train-item { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+  .train-title { font-size: 12px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
+  .train-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+  /* ANALYTICS */
+  .hour-row { display: grid; grid-template-columns: 52px 1fr 50px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #14141f; }
+  .hour-label { font-size: 10px; font-family: monospace; color: #64748b; font-weight: 700; }
+  .hour-bar-track { height: 16px; background: #14141f; border-radius: 4px; overflow: hidden; position: relative; }
+  .hour-bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+  .hour-dm-pct { font-size: 10px; font-family: monospace; text-align: right; color: #94a3b8; font-weight: 700; }
+  .hot-zone .hour-label { color: #fbbf24; }
+  .hot-zone-badge { display: inline-block; font-size: 8px; letter-spacing: .08em; background: #f59e0b22; color: #fbbf24; border: 1px solid #f59e0b55; border-radius: 4px; padding: 1px 6px; margin-left: 6px; font-weight: 700; }
+  .null-row .hour-label { color: #ef4444; }
+  .null-badge { display: inline-block; font-size: 8px; letter-spacing: .08em; background: #ef444422; color: #f87171; border: 1px solid #ef444455; border-radius: 4px; padding: 1px 6px; margin-left: 6px; font-weight: 700; }
+  .analytics-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .summary-box { background: #0f0f1a; border: 1px solid #1a1a2e; border-radius: 10px; padding: 12px; }
+  .summary-label { font-size: 8px; letter-spacing: .1em; color: #475569; font-weight: 700; margin-bottom: 6px; }
+  .summary-val { font-size: 12px; color: #e2e8f0; font-weight: 700; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand">LIFT <span>LOCAL</span></div>
+    <div class="brand-sub">SDR COMMAND CENTER</div>
+  </div>
+  <div class="header-date" id="headerDate"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="rep-selector" id="repSelector"></div>
+
+  <div class="section-label">QUOTA · THIS MONTH</div>
+  <div class="card">
+    <div class="quota-row"><span class="quota-label">HELD DEMOS — GOAL <span id="dQuotaGoal"></span></span><span class="quota-pct" id="dQuotaPct"></span></div>
+    <div class="progress-wrap"><div class="progress-fill" id="dQuotaFill"></div></div>
+    <div class="divider"></div>
+    <div class="quota-row"><span class="quota-label">CLOSES — GOAL <span id="cQuotaGoal"></span></span><span class="quota-pct" id="cQuotaPct"></span></div>
+    <div class="progress-wrap"><div class="progress-fill" id="cQuotaFill"></div></div>
+  </div>
+
+  <div class="pace-engine">
+    <div class="pace-title">⚡ PACE ENGINE</div>
+    <div class="pace-row"><span class="pace-metric">Closes needed/day to pace</span><span class="pace-num" id="paceCloses"></span></div>
+    <div class="pace-row"><span class="pace-metric">Demos needed/day to pace</span><span class="pace-num" id="paceDemos"></span></div>
+    <div class="divider"></div>
+    <div class="pace-row"><span class="pace-metric" id="paceStatus"></span><span style="font-size:11px;color:#475569" id="paceDaysLeft"></span></div>
+  </div>
+
+  <div class="mission-block">
+    <div class="mission-title">🎯 TODAY'S MISSION</div>
+    <div class="mission-row"><span class="mission-label">📞 Dials</span><span class="mission-val" id="mDials"></span></div>
+    <div class="mission-row"><span class="mission-label">🤝 DMs to reach</span><span class="mission-val" id="mDms"></span></div>
+    <div class="mission-row"><span class="mission-label">📅 Sets to book</span><span class="mission-val" id="mSets"></span></div>
+    <div class="mission-row"><span class="mission-label">🎬 Demos to hold</span><span class="mission-val" id="mDemos"></span></div>
+    <div class="mission-row"><span class="mission-label">✅ Closes to hit</span><span class="mission-val" id="mCloses"></span></div>
+  </div>
+
+  <div class="section-label">ACTIVITY</div>
+  <div class="period-tabs" id="periodTabs"></div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="conv-chain">
+    <div class="conv-title">YOUR CONVERSION RATES</div>
+    <div class="conv-row"><span class="conv-label">Dials → DM</span><span class="conv-val" id="crDM"></span></div>
+    <div class="conv-row"><span class="conv-label">DM → Set</span><span class="conv-val" id="crSet"></span></div>
+    <div class="conv-row"><span class="conv-label">Set hold rate</span><span class="conv-val" id="crHold"></span></div>
+    <div class="conv-row"><span class="conv-label">Sets → Close</span><span class="conv-val" id="crClose"></span></div>
+  </div>
+</div>
+
+<!-- ENTER DATA -->
+<div class="page" id="page-enter">
+  <div class="section-label">MANUAL ENTRY</div>
+  <div class="rep-selector" id="repSelectorEnter"></div>
+  <div class="card">
+    <div class="section-label" style="margin-top:0">MONTH-TO-DATE TOTALS</div>
+    <div class="grid2">
+      <div><label class="field-label">DIALS</label><input type="number" id="in_dials"></div>
+      <div><label class="field-label">DECISION MAKERS</label><input type="number" id="in_dms"></div>
+      <div><label class="field-label">SETS</label><input type="number" id="in_sets"></div>
+      <div><label class="field-label">RESETS</label><input type="number" id="in_resets"></div>
+      <div><label class="field-label">HELD DEMOS</label><input type="number" id="in_demos"></div>
+      <div><label class="field-label">CLOSES</label><input type="number" id="in_closes"></div>
+    </div>
+    <label class="field-label">TODAY'S DIALS (for daily KPI card)</label>
+    <input type="number" id="in_dialsToday">
+    <div style="margin-top:14px"><button class="btn" onclick="saveManualEntry()">UPDATE DASHBOARD</button></div>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="page" id="page-upload">
+  <div class="section-label">ZAPIER SYNC · GOOGLE SHEET</div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="train-desc">Zapier pulls your Salesforce report on a schedule and writes it to a Google Sheet — Rep / Metric / Value columns, one row per rep per metric. Publish that sheet to the web as CSV (File → Share → Publish to web → CSV) and paste the link below. No login, no API key — this just reads a public CSV.</div>
+  </div>
+  <div class="card">
+    <label class="field-label" style="margin-top:0">PUBLISHED SHEET CSV URL</label>
+    <input type="text" id="zap_sheet_url" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:#94a3b8">
+      <input type="checkbox" id="zap_autosync" style="width:auto" onchange="saveZapierAutoSync()"> Auto-sync every time the tracker loads
+    </label>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn" onclick="saveZapierUrl(); syncFromSheet();">SAVE & SYNC NOW</button>
+    </div>
+    <div id="zapSyncLog" style="margin-top:10px;font-size:11px;color:#64748b"></div>
+  </div>
+
+  <div class="section-label" style="margin-top:22px">SALESFORCE LIVE CONNECT (ADVANCED / OPTIONAL)</div>
+  <div class="card" style="margin-bottom:14px" id="sfStatusCard">
+    <div class="train-desc" id="sfStatusText">Not connected. Set your Consumer Key below, then connect — the tracker will log into Salesforce directly and pull your existing reports.</div>
+  </div>
+  <div class="card">
+    <label class="field-label" style="margin-top:0">ENVIRONMENT</label>
+    <select id="sf_env">
+      <option value="login">Production</option>
+      <option value="test">Sandbox</option>
+    </select>
+    <label class="field-label">CONSUMER KEY (CLIENT ID)</label>
+    <input type="text" id="sf_clientid" placeholder="Paste the Consumer Key from your Connected App">
+    <label class="field-label">CALLBACK URL — paste this exact value into the Connected App</label>
+    <input type="text" id="sf_redirect" readonly onclick="this.select()">
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn" onclick="connectSalesforce()">CONNECT TO SALESFORCE</button>
+      <button class="btn secondary" onclick="disconnectSalesforce()">DISCONNECT</button>
+    </div>
+  </div>
+
+  <div class="card" id="sfReportMapCard" style="display:none">
+    <div class="section-label" style="margin-top:0">MAP EACH METRIC TO A SALESFORCE REPORT</div>
+    <button class="btn secondary" onclick="loadSalesforceReports()" style="margin-bottom:10px">LOAD MY REPORTS</button>
+    <div id="sfReportMapFields"></div>
+    <div style="margin-top:12px"><button class="btn" onclick="saveReportMapping()">SAVE MAPPING</button></div>
+  </div>
+
+  <div class="card" id="sfSyncCard" style="display:none">
+    <div class="section-label" style="margin-top:0">SYNC</div>
+    <div class="train-desc" style="margin-bottom:10px">Pulls the latest subtotal from each mapped report and updates every rep's KPI totals.</div>
+    <button class="btn" onclick="syncSalesforce()">SYNC NOW</button>
+    <div id="sfSyncLog" style="margin-top:10px;font-size:11px;color:#64748b"></div>
+  </div>
+
+  <div class="section-label" style="margin-top:22px">MANUAL FALLBACK — CSV / XLSX UPLOAD</div>
+  <div class="card" style="margin-bottom:14px">
+    <div class="train-desc">If live sync isn't set up yet, export each metric as its own Salesforce report (grouped by rep, with subtotals) and upload it here. One team-wide file per metric — not per rep. The parser reads column B for rep name and column D for the subtotal count.</div>
+  </div>
+  <div class="upload-box"><div class="upload-label">Dials Report</div><input type="file" accept=".csv,.xlsx" data-metric="dials" onchange="handleUpload(event)"></div>
+  <div class="upload-box"><div class="upload-label">Decision Makers Report</div><input type="file" accept=".csv,.xlsx" data-metric="dms" onchange="handleUpload(event)"></div>
+  <div class="upload-box"><div class="upload-label">Sets Report</div><input type="file" accept=".csv,.xlsx" data-metric="sets" onchange="handleUpload(event)"></div>
+  <div class="upload-box"><div class="upload-label">Resets Report</div><input type="file" accept=".csv,.xlsx" data-metric="resets" onchange="handleUpload(event)"></div>
+  <div class="upload-box"><div class="upload-label">Held Demos Report</div><input type="file" accept=".csv,.xlsx" data-metric="demos" onchange="handleUpload(event)"></div>
+  <div class="upload-box"><div class="upload-label">Closes Report</div><input type="file" accept=".csv,.xlsx" data-metric="closes" onchange="handleUpload(event)"></div>
+</div>
+
+<!-- MOTIVATION -->
+<div class="page" id="page-motivation">
+  <div class="section-label">DAILY MOTIVATION</div>
+  <div class="quote-card">
+    <div class="quote-text" id="quoteText"></div>
+    <div class="quote-attr" id="quoteAttr"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="newQuote()">NEW THOUGHT</button>
+  </div>
+  <div class="section-label" style="margin-top:20px">TEAM MESSAGE BOARD</div>
+  <div class="card">
+    <textarea id="teamMsg" placeholder="Post a note for the team..." style="width:100%;background:#14141f;border:1px solid #1a1a2e;border-radius:8px;color:#e2e8f0;padding:10px;font-family:inherit;font-size:13px;min-height:70px"></textarea>
+    <div style="margin-top:10px"><button class="btn secondary" onclick="postMsg()">POST</button></div>
+    <div id="msgList" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- TRAINING -->
+<div class="page" id="page-training">
+  <div class="section-label">CALL AUDIT & TRAINING HUB</div>
+  <div class="train-item">
+    <div class="train-title">📋 Call Scorecard</div>
+    <div class="train-desc">Grade your own calls against the Lift Local framework: validate → open-ended → narrow → confirm → earn the right to respond. Score each stage 1–5 after every set.</div>
+  </div>
+  <div class="train-item">
+    <div class="train-title">🎯 The Ledge</div>
+    <div class="train-desc">Opening-line drill for getting past the first 5 seconds without a hang-up.</div>
+  </div>
+  <div class="train-item">
+    <div class="train-title">🔺 3D Framework</div>
+    <div class="train-desc">Diffuse → Discover → Discuss. Pain-building sequence for the middle of the call.</div>
+  </div>
+  <div class="train-item">
+    <div class="train-title">🎬 Recorded Call Reviews</div>
+    <div class="train-desc">Drop your best and worst call of the week here for manager review.</div>
+  </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="page" id="page-analytics">
+  <div class="section-label">DECISION MAKER HOT ZONES</div>
+  <div class="rep-selector" id="repSelectorAnalytics"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="train-desc">Upload a Salesforce call/task export with a rep name, a call date-time, and a disposition column (any names — the parser auto-detects them). Hot Zones are the hours where a rep consistently lands the strongest Decision Maker contact rate. This same call log also powers the Dial Volume tab.</div>
+  </div>
+  <div class="upload-box">
+    <div class="upload-label">Call / Task Export (rep, timestamp, disposition)</div>
+    <input type="file" accept=".csv,.xlsx" id="callLogUpload" onchange="handleCallLogUpload(event)">
+  </div>
+
+  <div class="card">
+    <div class="section-label" style="margin-top:0">QUICK LOG A CALL</div>
+    <div class="grid3">
+      <div>
+        <label class="field-label">REP</label>
+        <select id="ql_rep"></select>
+      </div>
+      <div>
+        <label class="field-label">HOUR</label>
+        <select id="ql_hour"></select>
+      </div>
+      <div>
+        <label class="field-label">DISPOSITION</label>
+        <select id="ql_disp">
+          <option value="Decision Maker">Decision Maker</option>
+          <option value="Gatekeeper">Gatekeeper</option>
+          <option value="No Answer">No Answer</option>
+          <option value="Voicemail">Voicemail</option>
+          <option value="Not Interested">Not Interested</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px"><button class="btn secondary" onclick="quickAddCall()">LOG DIAL</button></div>
+  </div>
+
+  <div class="analytics-summary" id="analyticsSummary"></div>
+
+  <div class="section-label">HOURLY BREAKDOWN — DM CONTACT RATE</div>
+  <div class="card" id="hourlyBreakdown"></div>
+
+  <div style="margin-top:6px"><button class="btn secondary" onclick="clearCallLog()">CLEAR CALL LOG</button></div>
+</div>
+
+<!-- NULLS / DIAL VOLUME -->
+<div class="page" id="page-nulls">
+  <div class="section-label">SLOW DIAL PERIODS</div>
+  <div class="rep-selector" id="repSelectorNulls"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="train-desc">Uses the same call log uploaded on the Hot Zones tab — this view just looks at raw dial volume instead of disposition. Slow Periods are hours where a rep's dial count consistently falls well below their own hourly average. Dead Hours are hours where no dials were logged at all.</div>
+  </div>
+
+  <div class="analytics-summary" id="nullsSummary"></div>
+
+  <div class="section-label">HOURLY BREAKDOWN — DIAL VOLUME</div>
+  <div class="card" id="nullsBreakdown"></div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" data-page="dashboard" onclick="switchPage('dashboard')"><span class="nav-icon">📊</span>DASHBOARD</button>
+  <button class="nav-btn" data-page="enter" onclick="switchPage('enter')"><span class="nav-icon">✍️</span>ENTER</button>
+  <button class="nav-btn" data-page="upload" onclick="switchPage('upload')"><span class="nav-icon">📤</span>UPLOAD</button>
+  <button class="nav-btn" data-page="motivation" onclick="switchPage('motivation')"><span class="nav-icon">🔥</span>MOTIVATE</button>
+  <button class="nav-btn" data-page="training" onclick="switchPage('training')"><span class="nav-icon">🎓</span>TRAINING</button>
+  <button class="nav-btn" data-page="analytics" onclick="switchPage('analytics')"><span class="nav-icon">📈</span>HOT ZONES</button>
+  <button class="nav-btn" data-page="nulls" onclick="switchPage('nulls')"><span class="nav-icon">📉</span>DIAL VOL</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== REP CONFIG ===================== */
+const REPS = {
+  madi: {
+    name: 'Madi Hannett', role: 'Junior SDR',
+    quota: { closes: 5, heldDemos: 16 },
+    dialsPerDM: 8, dmsPerSet: 4, holdRate: 0.44, setsPerClose: 5,
+    dailyDialTarget: 64
+  },
+  darian: {
+    name: 'Darian Smith', role: 'Senior SDR',
+    quota: { closes: 7, heldDemos: 21 },
+    dialsPerDM: 8, dmsPerSet: 3, holdRate: 0.52, setsPerClose: 5,
+    dailyDialTarget: 50
+  },
+  alex: {
+    name: 'Alex Curtis', role: 'Senior SDR',
+    quota: { closes: 7, heldDemos: 21 },
+    dialsPerDM: 8, dmsPerSet: 2, holdRate: 0.60, setsPerClose: 4,
+    dailyDialTarget: 50
+  }
+};
+for (const k in REPS) REPS[k].dialsPerSet = REPS[k].dialsPerDM * REPS[k].dmsPerSet;
+
+/* ===================== ANALYTICS CONFIG ===================== */
+const DM_KEYWORDS = ['decision maker', 'decision-maker', 'dm connect', 'connected - decision'];
+const HOUR_START = 7;   // 7am
+const HOUR_END = 19;    // 7pm (last bucket is 6pm-7pm)
+let analyticsRepFilter = 'all';
+
+function isDMDisposition(str) {
+  const s = (str||'').toString().toLowerCase();
+  return DM_KEYWORDS.some(k => s.includes(k));
+}
+function hourLabel(h) {
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  let hr = h % 12; if (hr === 0) hr = 12;
+  return hr + (ampm === 'AM' ? 'A' : 'P');
+}
+function loadCallLog(repKey) {
+  const raw = localStorage.getItem('ll_calllog_' + repKey);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveCallLog(repKey, log) {
+  localStorage.setItem('ll_calllog_' + repKey, JSON.stringify(log));
+}
+
+const QUOTES = [
+  ["Activity is the one thing they can never take from you. Control it.", "SIQ Sales Philosophy"],
+  ["You don't rise to the level of your goals, you fall to the level of your systems.", "James Clear"],
+  ["Every dial is a rep. Every rep builds the muscle that gets you to quota.", "Lift Local"],
+  ["Confidence is a decision, not a feeling. Decide before the first dial.", "SIQ Sales Philosophy"],
+  ["The close doesn't start at the close. It starts at the opener.", "Lift Local"],
+  ["Discipline beats motivation on the days motivation doesn't show up.", "SIQ Sales Philosophy"],
+  ["Sets are earned in the diffuse, not demanded in the ask.", "3D Framework"],
+  ["Pace is just math. Do the math, then go do the work.", "Lift Local"]
+];
+
+/* ===================== STATE ===================== */
+let currentRep = localStorage.getItem('ll_currentRep') || 'madi';
+let currentPeriod = 'month';
+
+function loadData(repKey) {
+  const raw = localStorage.getItem('ll_data_' + repKey);
+  return raw ? JSON.parse(raw) : { dials:0, dms:0, sets:0, resets:0, demos:0, closes:0, dialsToday:0 };
+}
+function saveData(repKey, data) {
+  localStorage.setItem('ll_data_' + repKey, JSON.stringify(data));
+}
+
+/* ===================== NAV ===================== */
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-btn[data-page="${page}"]`).classList.add('active');
+  if (page === 'motivation') renderMessages();
+  if (page === 'upload') { updateSfStatusUI(); initZapierUI(); }
+  if (page === 'analytics') renderAnalytics();
+  if (page === 'nulls') renderNulls();
+}
+
+/* ===================== REP SELECTOR ===================== */
+function renderRepSelectors() {
+  ['repSelector','repSelectorEnter'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = Object.keys(REPS).map(k => {
+      const r = REPS[k];
+      return `<button class="rep-chip ${k===currentRep?'active':''}" onclick="selectRep('${k}','${id}')">${r.name}<span class="rep-role">${r.role}</span></button>`;
+    }).join('');
+  });
+}
+function selectRep(key, sourceId) {
+  currentRep = key;
+  localStorage.setItem('ll_currentRep', key);
+  renderRepSelectors();
+  renderDashboard();
+  populateEnterForm();
+}
+
+/* ===================== PACE ENGINE ===================== */
+function daysInMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+}
+function dayOfMonth() { return new Date().getDate(); }
+
+function computePace(rep, data) {
+  const total = daysInMonth();
+  const today = dayOfMonth();
+  const remaining = Math.max(total - today + 1, 1);
+
+  const closesLeft = Math.max(rep.quota.closes - data.closes, 0);
+  const demosLeft = Math.max(rep.quota.heldDemos - data.demos, 0);
+
+  const closesNeededToday = Math.ceil(closesLeft / remaining);
+  const demosNeededToday = Math.ceil(demosLeft / remaining);
+
+  // Today's mission: work backwards from whichever gap is larger (closes usually drives, demos as floor)
+  const demosNeededTodayForSets = demosNeededToday;
+  const setsNeededToday = Math.max(
+    Math.ceil(demosNeededTodayForSets / rep.holdRate),
+    Math.ceil(closesNeededToday * rep.setsPerClose)
+  );
+  const dmsNeededToday = Math.ceil(setsNeededToday * rep.dmsPerSet);
+  const dialsNeededToday = Math.max(Math.ceil(dmsNeededToday * rep.dialsPerDM), rep.dailyDialTarget);
+
+  const expectedPctByNow = today / total;
+  const closesOnPace = data.closes >= rep.quota.closes * expectedPctByNow;
+  const demosOnPace = data.demos >= rep.quota.heldDemos * expectedPctByNow;
+  const onPace = closesOnPace && demosOnPace;
+
+  return {
+    remaining, closesLeft, demosLeft, closesNeededToday, demosNeededToday,
+    setsNeededToday, dmsNeededToday, dialsNeededToday, onPace
+  };
+}
+
+/* ===================== DASHBOARD RENDER ===================== */
+function renderDashboard() {
+  const rep = REPS[currentRep];
+  const data = loadData(currentRep);
+  const m = computePace(rep, data);
+
+  const demoPct = Math.min(Math.round((data.demos / rep.quota.heldDemos) * 100), 100);
+  const closePct = Math.min(Math.round((data.closes / rep.quota.closes) * 100), 100);
+  const dpc = demoPct >= 100 ? '#22c55e' : demoPct >= 60 ? '#60a5fa' : '#f59e0b';
+  const cpc = closePct >= 100 ? '#22c55e' : closePct >= 60 ? '#60a5fa' : '#f59e0b';
+
+  document.getElementById('dQuotaGoal').textContent = rep.quota.heldDemos;
+  document.getElementById('cQuotaGoal').textContent = rep.quota.closes;
+  document.getElementById('dQuotaPct').textContent = `${data.demos} (${demoPct}%)`;
+  document.getElementById('cQuotaPct').textContent = `${data.closes} (${closePct}%)`;
+  document.getElementById('dQuotaPct').style.color = dpc;
+  document.getElementById('cQuotaPct').style.color = cpc;
+  document.getElementById('dQuotaFill').style.width = demoPct + '%';
+  document.getElementById('dQuotaFill').style.background = dpc;
+  document.getElementById('cQuotaFill').style.width = closePct + '%';
+  document.getElementById('cQuotaFill').style.background = cpc;
+
+  document.getElementById('paceCloses').textContent = m.closesNeededToday;
+  document.getElementById('paceCloses').style.color = cpc;
+  document.getElementById('paceDemos').textContent = m.demosNeededToday;
+  document.getElementById('paceDemos').style.color = dpc;
+  document.getElementById('paceStatus').textContent = m.onPace ? '✅ ON PACE' : `⚠️ ${m.closesLeft} closes / ${m.demosLeft} demos left`;
+  document.getElementById('paceStatus').style.color = m.onPace ? '#22c55e' : '#f59e0b';
+  document.getElementById('paceDaysLeft').textContent = `${m.remaining} days remaining`;
+
+  document.getElementById('mDials').textContent = m.dialsNeededToday;
+  document.getElementById('mDms').textContent = m.dmsNeededToday;
+  document.getElementById('mSets').textContent = m.setsNeededToday;
+  document.getElementById('mDemos').textContent = m.demosNeededToday;
+  document.getElementById('mCloses').textContent = m.closesNeededToday;
+
+  renderKpiGrid(rep, data);
+
+  document.getElementById('crDM').textContent = `1 per ${rep.dialsPerDM} dials`;
+  document.getElementById('crSet').textContent = `1 per ${rep.dmsPerSet} DMs`;
+  document.getElementById('crHold').textContent = `${Math.round(rep.holdRate*100)}%`;
+  document.getElementById('crClose').textContent = `1 per ${rep.setsPerClose} sets`;
+}
+
+function renderPeriodTabs() {
+  const el = document.getElementById('periodTabs');
+  el.innerHTML = ['today','week','month'].map(p =>
+    `<button class="period-tab ${currentPeriod===p?'active':''}" onclick="setPeriod('${p}')">${p.toUpperCase()}</button>`
+  ).join('');
+}
+function setPeriod(p) { currentPeriod = p; renderPeriodTabs(); renderKpiGrid(REPS[currentRep], loadData(currentRep)); }
+
+function renderKpiGrid(rep, data) {
+  // Simple model: "today" shows dialsToday only (other metrics require daily granularity not tracked),
+  // "week"/"month" show month-to-date totals divided evenly as an approximation for week.
+  let vals;
+  if (currentPeriod === 'today') {
+    vals = { dials: data.dialsToday||0, dms: '—', sets: '—', resets: '—', demos: '—', closes: '—' };
+  } else if (currentPeriod === 'week') {
+    const factor = dayOfMonth() / 7 || 1;
+    vals = {
+      dials: Math.round((data.dials||0)/Math.max(factor,1)),
+      dms: Math.round((data.dms||0)/Math.max(factor,1)),
+      sets: Math.round((data.sets||0)/Math.max(factor,1)),
+      resets: Math.round((data.resets||0)/Math.max(factor,1)),
+      demos: Math.round((data.demos||0)/Math.max(factor,1)),
+      closes: Math.round((data.closes||0)/Math.max(factor,1))
+    };
+  } else {
+    vals = { dials: data.dials||0, dms: data.dms||0, sets: data.sets||0, resets: data.resets||0, demos: data.demos||0, closes: data.closes||0 };
+  }
+  const el = document.getElementById('kpiGrid');
+  const labels = [['DIALS','dials'],['DMs','dms'],['SETS','sets'],['RESETS','resets'],['DEMOS','demos'],['CLOSES','closes']];
+  el.innerHTML = labels.map(([lab,key]) => `<div class="kpi-box"><div class="kpi-label">${lab}</div><div class="kpi-val">${vals[key]}</div></div>`).join('');
+}
+
+/* ===================== MANUAL ENTRY ===================== */
+function populateEnterForm() {
+  const data = loadData(currentRep);
+  document.getElementById('in_dials').value = data.dials||0;
+  document.getElementById('in_dms').value = data.dms||0;
+  document.getElementById('in_sets').value = data.sets||0;
+  document.getElementById('in_resets').value = data.resets||0;
+  document.getElementById('in_demos').value = data.demos||0;
+  document.getElementById('in_closes').value = data.closes||0;
+  document.getElementById('in_dialsToday').value = data.dialsToday||0;
+}
+function saveManualEntry() {
+  const data = {
+    dials: +document.getElementById('in_dials').value||0,
+    dms: +document.getElementById('in_dms').value||0,
+    sets: +document.getElementById('in_sets').value||0,
+    resets: +document.getElementById('in_resets').value||0,
+    demos: +document.getElementById('in_demos').value||0,
+    closes: +document.getElementById('in_closes').value||0,
+    dialsToday: +document.getElementById('in_dialsToday').value||0
+  };
+  saveData(currentRep, data);
+  renderDashboard();
+  showToast('Dashboard updated for ' + REPS[currentRep].name);
+  switchPage('dashboard');
+}
+
+/* ===================== CSV/XLSX UPLOAD ===================== */
+// Reads a team-wide Salesforce export. Rep name expected in column B, subtotal count in column D,
+// for the rows that are subtotal rows (one per rep group).
+function handleUpload(evt) {
+  const file = evt.target.files[0];
+  const metric = evt.target.getAttribute('data-metric');
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let rows;
+    if (file.name.endsWith('.csv')) {
+      const wb = XLSX.read(e.target.result, { type: 'string' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    } else {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    }
+    applyUploadRows(rows, metric);
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsBinaryString(file);
+}
+function applyUploadRows(rows, metric) {
+  const repNameMap = {};
+  Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
+
+  let matched = 0;
+  rows.forEach(row => {
+    if (!row || row.length < 4) return;
+    const colB = (row[1]||'').toString().trim().toLowerCase();
+    const colD = row[3];
+    for (const fullName in repNameMap) {
+      if (colB && fullName.includes(colB.split(' ')[0]) && colB.length > 2) {
+        const repKey = repNameMap[fullName];
+        const data = loadData(repKey);
+        const num = parseInt(colD, 10);
+        if (!isNaN(num)) {
+          data[metric] = num;
+          saveData(repKey, data);
+          matched++;
+        }
+        break;
+      }
+    }
+  });
+  renderDashboard();
+  showToast(matched > 0 ? `Updated ${metric} for ${matched} rep(s)` : 'No matching rep rows found — check the file format');
+}
+
+/* ===================== ZAPIER / GOOGLE SHEET SYNC ===================== */
+// Expects a published Google Sheet CSV with a header row containing rep, metric, and value columns
+// (any reasonable naming — auto-detected). One row per rep per metric, e.g. "Madi Hannett, Dials, 812".
+const METRIC_KEYWORDS = {
+  dials: ['dial'],
+  dms: ['decision', 'dm'],
+  sets: ['set'],
+  resets: ['reset'],
+  demos: ['demo'],
+  closes: ['close']
+};
+
+function initZapierUI() {
+  document.getElementById('zap_sheet_url').value = localStorage.getItem('ll_zap_sheet_url') || '';
+  document.getElementById('zap_autosync').checked = localStorage.getItem('ll_zap_autosync') === 'true';
+  const lastSync = localStorage.getItem('ll_zap_lastsync');
+  if (lastSync) document.getElementById('zapSyncLog').textContent = 'Last synced: ' + lastSync;
+}
+function saveZapierUrl() {
+  const url = document.getElementById('zap_sheet_url').value.trim();
+  localStorage.setItem('ll_zap_sheet_url', url);
+}
+function saveZapierAutoSync() {
+  localStorage.setItem('ll_zap_autosync', document.getElementById('zap_autosync').checked);
+}
+
+function matchMetricKeyword(str) {
+  const s = (str||'').toLowerCase();
+  for (const metric in METRIC_KEYWORDS) {
+    if (METRIC_KEYWORDS[metric].some(k => s.includes(k))) return metric;
+  }
+  return null;
+}
+
+async function syncFromSheet() {
+  const url = localStorage.getItem('ll_zap_sheet_url');
+  const log = document.getElementById('zapSyncLog');
+  if (!url) { showToast('Paste the published sheet CSV URL first'); return; }
+  log.textContent = 'Syncing…';
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { log.textContent = 'Fetch failed: ' + res.status; return; }
+    const text = await res.text();
+    const wb = XLSX.read(text, { type: 'string' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    const matched = applySheetRows(rows);
+    const ts = new Date().toLocaleString();
+    localStorage.setItem('ll_zap_lastsync', ts);
+    log.textContent = `Synced ${matched} value(s) — last synced ${ts}`;
+    renderDashboard();
+    showToast('Synced from sheet');
+  } catch (e) {
+    log.textContent = 'Sync error — check the URL is a published CSV link';
+  }
+}
+
+function applySheetRows(rows) {
+  if (!rows || rows.length < 2) return 0;
+  const header = rows[0].map(h => (h||'').toString().toLowerCase());
+  const findCol = (keywords) => header.findIndex(h => keywords.some(k => h.includes(k)));
+  const repCol = findCol(['rep', 'owner', 'name']);
+  const metricCol = findCol(['metric']);
+  const valueCol = findCol(['value', 'count', 'total']);
+  if (repCol === -1 || metricCol === -1 || valueCol === -1) {
+    showToast('Could not find rep/metric/value columns in the sheet');
+    return 0;
+  }
+
+  const repNameMap = {};
+  Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
+  const firstNameMap = {};
+  Object.keys(REPS).forEach(k => firstNameMap[REPS[k].name.split(' ')[0].toLowerCase()] = k);
+
+  let matched = 0;
+  rows.slice(1).forEach(row => {
+    if (!row || row.length === 0) return;
+    const repRaw = (row[repCol]||'').toString().trim().toLowerCase();
+    const metricRaw = (row[metricCol]||'').toString().trim();
+    const valueRaw = row[valueCol];
+    if (!repRaw) return;
+
+    let repKey = null;
+    for (const full in repNameMap) { if (repRaw.includes(full)) { repKey = repNameMap[full]; break; } }
+    if (!repKey) { for (const first in firstNameMap) { if (repRaw.includes(first)) { repKey = firstNameMap[first]; break; } } }
+    if (!repKey) return;
+
+    const metricKey = matchMetricKeyword(metricRaw);
+    if (!metricKey) return;
+
+    const num = parseInt(valueRaw, 10);
+    if (isNaN(num)) return;
+
+    const data = loadData(repKey);
+    data[metricKey] = num;
+    saveData(repKey, data);
+    matched++;
+  });
+  return matched;
+}
+
+/* ===================== SALESFORCE LIVE CONNECT ===================== */
+const SF_API_VERSION = 'v59.0';
+const METRIC_LABELS = { dials: 'Dials', dms: 'Decision Makers', sets: 'Sets', resets: 'Resets', demos: 'Held Demos', closes: 'Closes' };
+let sfReportsList = [];
+
+function computeRedirectUri() { return window.location.origin + window.location.pathname; }
+
+function initSalesforceUI() {
+  document.getElementById('sf_redirect').value = computeRedirectUri();
+  document.getElementById('sf_env').value = localStorage.getItem('ll_sf_env') || 'login';
+  document.getElementById('sf_clientid').value = localStorage.getItem('ll_sf_clientid') || '';
+  updateSfStatusUI();
+}
+
+function connectSalesforce() {
+  const env = document.getElementById('sf_env').value;
+  const clientId = document.getElementById('sf_clientid').value.trim();
+  if (!clientId) { showToast('Enter your Consumer Key first'); return; }
+  localStorage.setItem('ll_sf_env', env);
+  localStorage.setItem('ll_sf_clientid', clientId);
+  const redirectUri = computeRedirectUri();
+  const authUrl = `https://${env}.salesforce.com/services/oauth2/authorize?response_type=token&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=api`;
+  window.location.href = authUrl;
+}
+
+function disconnectSalesforce() {
+  localStorage.removeItem('ll_sf_token');
+  localStorage.removeItem('ll_sf_instance');
+  updateSfStatusUI();
+  showToast('Disconnected from Salesforce');
+}
+
+// Salesforce redirects back with the access token in the URL fragment (#access_token=...&instance_url=...).
+// This runs on load, before anything else touches the URL, and scrubs the token out of the address bar after storing it.
+function checkOAuthRedirect() {
+  if (window.location.hash && window.location.hash.includes('access_token=')) {
+    const params = new URLSearchParams(window.location.hash.substring(1));
+    const token = params.get('access_token');
+    const instanceUrl = params.get('instance_url');
+    if (token && instanceUrl) {
+      localStorage.setItem('ll_sf_token', token);
+      localStorage.setItem('ll_sf_instance', instanceUrl);
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      showToast('Connected to Salesforce');
+    }
+  }
+}
+
+function updateSfStatusUI() {
+  const token = localStorage.getItem('ll_sf_token');
+  const instance = localStorage.getItem('ll_sf_instance');
+  const statusText = document.getElementById('sfStatusText');
+  const mapCard = document.getElementById('sfReportMapCard');
+  const syncCard = document.getElementById('sfSyncCard');
+  if (token && instance) {
+    statusText.textContent = `Connected — ${instance}`;
+    mapCard.style.display = 'block';
+    syncCard.style.display = 'block';
+    renderReportMapFieldsFromSaved();
+  } else {
+    statusText.textContent = 'Not connected. Set your Consumer Key below, then connect — the tracker will log into Salesforce directly and pull your existing reports.';
+    mapCard.style.display = 'none';
+    syncCard.style.display = 'none';
+  }
+}
+
+async function sfApiFetch(path) {
+  const token = localStorage.getItem('ll_sf_token');
+  const instance = localStorage.getItem('ll_sf_instance');
+  if (!token || !instance) { showToast('Connect to Salesforce first'); return null; }
+  const res = await fetch(instance + path, { headers: { 'Authorization': 'Bearer ' + token } });
+  if (res.status === 401) {
+    showToast('Salesforce session expired — reconnect');
+    disconnectSalesforce();
+    return null;
+  }
+  if (!res.ok) { showToast('Salesforce API error: ' + res.status); return null; }
+  return res.json();
+}
+
+async function loadSalesforceReports() {
+  showToast('Loading reports…');
+  const data = await sfApiFetch(`/services/data/${SF_API_VERSION}/analytics/reports`);
+  if (!data) return;
+  sfReportsList = data.map(r => ({ id: r.id, name: r.name }));
+  renderReportMapFields();
+  showToast(`Loaded ${sfReportsList.length} reports`);
+}
+
+function renderReportMapFields() {
+  const saved = JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}');
+  const el = document.getElementById('sfReportMapFields');
+  el.innerHTML = Object.keys(METRIC_LABELS).map(metric => {
+    const options = sfReportsList.map(r => `<option value="${r.id}" ${saved[metric]===r.id?'selected':''}>${r.name}</option>`).join('');
+    return `<label class="field-label">${METRIC_LABELS[metric].toUpperCase()} REPORT</label>
+      <select id="sfmap_${metric}"><option value="">— none —</option>${options}</select>`;
+  }).join('');
+}
+// Before "Load My Reports" has been clicked this session, show saved report IDs as plain text fields
+// rather than an empty dropdown, so the mapping isn't lost between visits.
+function renderReportMapFieldsFromSaved() {
+  const saved = JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}');
+  if (Object.keys(saved).length && sfReportsList.length === 0) {
+    const el = document.getElementById('sfReportMapFields');
+    el.innerHTML = Object.keys(METRIC_LABELS).map(metric =>
+      `<label class="field-label">${METRIC_LABELS[metric].toUpperCase()} REPORT</label>
+       <input type="text" value="${saved[metric] || ''}" id="sfmap_${metric}" placeholder="Report ID">`
+    ).join('') + `<div class="train-desc" style="margin-top:8px">Click "Load My Reports" to pick from a dropdown instead of typing IDs.</div>`;
+  }
+}
+
+function saveReportMapping() {
+  const map = {};
+  Object.keys(METRIC_LABELS).forEach(metric => {
+    const field = document.getElementById('sfmap_' + metric);
+    if (field && field.value) map[metric] = field.value;
+  });
+  localStorage.setItem('ll_sf_reportmap', JSON.stringify(map));
+  showToast('Report mapping saved');
+}
+
+async function syncSalesforce() {
+  const map = JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}');
+  const metrics = Object.keys(map);
+  if (!metrics.length) { showToast('Map at least one report first'); return; }
+  const log = document.getElementById('sfSyncLog');
+  log.innerHTML = 'Syncing…';
+  const summary = [];
+  for (const metric of metrics) {
+    const reportId = map[metric];
+    const data = await sfApiFetch(`/services/data/${SF_API_VERSION}/analytics/reports/${reportId}`);
+    if (!data) { summary.push(`${METRIC_LABELS[metric]}: failed`); continue; }
+    const matched = applySalesforceReportData(data, metric);
+    summary.push(`${METRIC_LABELS[metric]}: updated ${matched} rep(s)`);
+  }
+  log.innerHTML = summary.join('<br>');
+  renderDashboard();
+  showToast('Sync complete');
+}
+
+// Salesforce summary-report JSON groups rows under reportMetadata's first grouping (here, rep/owner).
+// groupingsDown.groupings[] gives each row's label + key; factMap["<key>!T"].aggregates[0].value is
+// that row's total record count — the same subtotal the manual CSV upload was already reading.
+function applySalesforceReportData(reportData, metric) {
+  const repNameMap = {};
+  Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
+  const firstNameMap = {};
+  Object.keys(REPS).forEach(k => firstNameMap[REPS[k].name.split(' ')[0].toLowerCase()] = k);
+
+  let groupings = [];
+  try { groupings = reportData.groupingsDown.groupings || []; } catch (e) { groupings = []; }
+
+  let matched = 0;
+  groupings.forEach(g => {
+    const label = (g.label || '').toString().trim().toLowerCase();
+    let repKey = null;
+    for (const full in repNameMap) { if (label.includes(full)) { repKey = repNameMap[full]; break; } }
+    if (!repKey) { for (const first in firstNameMap) { if (label.includes(first)) { repKey = firstNameMap[first]; break; } } }
+    if (!repKey) return;
+
+    const factKey = g.key + '!T';
+    const fact = reportData.factMap && reportData.factMap[factKey];
+    const value = fact && fact.aggregates && fact.aggregates[0] ? fact.aggregates[0].value : null;
+    if (value === null || value === undefined) return;
+
+    const data = loadData(repKey);
+    data[metric] = Math.round(value);
+    saveData(repKey, data);
+    matched++;
+  });
+  return matched;
+}
+
+/* ===================== ANALYTICS ===================== */
+function renderRepSelectorAnalytics() {
+  const el = document.getElementById('repSelectorAnalytics');
+  let html = `<button class="rep-chip ${analyticsRepFilter==='all'?'active':''}" onclick="setAnalyticsRep('all')">All Reps</button>`;
+  html += Object.keys(REPS).map(k =>
+    `<button class="rep-chip ${analyticsRepFilter===k?'active':''}" onclick="setAnalyticsRep('${k}')">${REPS[k].name}</button>`
+  ).join('');
+  el.innerHTML = html;
+}
+function setAnalyticsRep(key) { analyticsRepFilter = key; renderRepSelectorAnalytics(); renderAnalytics(); }
+
+function populateQuickLogSelectors() {
+  const repSel = document.getElementById('ql_rep');
+  repSel.innerHTML = Object.keys(REPS).map(k => `<option value="${k}">${REPS[k].name}</option>`).join('');
+  const hourSel = document.getElementById('ql_hour');
+  let opts = '';
+  for (let h = HOUR_START; h < HOUR_END; h++) opts += `<option value="${h}">${hourLabel(h)} – ${hourLabel(h+1)}</option>`;
+  hourSel.innerHTML = opts;
+}
+function quickAddCall() {
+  const rep = document.getElementById('ql_rep').value;
+  const hour = +document.getElementById('ql_hour').value;
+  const disp = document.getElementById('ql_disp').value;
+  const log = loadCallLog(rep);
+  const today = new Date();
+  const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+  log.push({ hour, disposition: disp, isDM: isDMDisposition(disp) || disp === 'Decision Maker', ts: Date.now(), date: dateStr });
+  saveCallLog(rep, log);
+  showToast('Logged dial for ' + REPS[rep].name);
+  renderAnalytics();
+}
+
+function getCallLogForFilter(filterVal) {
+  if (filterVal === 'all') {
+    let combined = [];
+    Object.keys(REPS).forEach(k => combined = combined.concat(loadCallLog(k)));
+    return combined;
+  }
+  return loadCallLog(filterVal);
+}
+function getCombinedCallLog() { return getCallLogForFilter(analyticsRepFilter); }
+
+function clearCallLog() {
+  if (analyticsRepFilter === 'all') {
+    Object.keys(REPS).forEach(k => saveCallLog(k, []));
+  } else {
+    saveCallLog(analyticsRepFilter, []);
+  }
+  renderAnalytics();
+  renderNulls();
+  showToast('Call log cleared');
+}
+
+function handleCallLogUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let rows;
+    if (file.name.endsWith('.csv')) {
+      const wb = XLSX.read(e.target.result, { type: 'string' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    } else {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+    }
+    parseAndStoreCallLog(rows);
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsBinaryString(file);
+}
+
+function parseAndStoreCallLog(rows) {
+  if (!rows || rows.length < 2) { showToast('File looks empty'); return; }
+  const header = rows[0].map(h => (h||'').toString().toLowerCase());
+  const findCol = (keywords) => header.findIndex(h => keywords.some(k => h.includes(k)));
+
+  const repCol = findCol(['owner', 'rep', 'name', 'user', 'assigned']);
+  const timeCol = findCol(['date', 'time']);
+  const dispCol = findCol(['disposition', 'outcome', 'result', 'subtype', 'subject']);
+
+  if (repCol === -1 || timeCol === -1 || dispCol === -1) {
+    showToast('Could not find rep/timestamp/disposition columns — check headers');
+    return;
+  }
+
+  const repNameMap = {};
+  Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
+  const firstNameMap = {};
+  Object.keys(REPS).forEach(k => firstNameMap[REPS[k].name.split(' ')[0].toLowerCase()] = k);
+
+  const newLogs = {};
+  Object.keys(REPS).forEach(k => newLogs[k] = []);
+
+  let parsedCount = 0, unmatchedRep = 0, unmatchedTime = 0;
+
+  rows.slice(1).forEach(row => {
+    if (!row || row.length === 0) return;
+    const repRaw = (row[repCol]||'').toString().trim().toLowerCase();
+    const timeRaw = row[timeCol];
+    const dispRaw = (row[dispCol]||'').toString().trim();
+    if (!repRaw) return;
+
+    let repKey = null;
+    for (const full in repNameMap) { if (repRaw.includes(full)) { repKey = repNameMap[full]; break; } }
+    if (!repKey) {
+      for (const first in firstNameMap) { if (repRaw.includes(first)) { repKey = firstNameMap[first]; break; } }
+    }
+    if (!repKey) { unmatchedRep++; return; }
+
+    let hour = null;
+    let dateStr = null;
+    if (typeof timeRaw === 'number') {
+      // Excel serial date/time
+      const parsed = XLSX.SSF.parse_date_code(timeRaw);
+      if (parsed && parsed.H !== undefined) hour = parsed.H;
+      if (parsed && parsed.y) dateStr = parsed.y + '-' + parsed.m + '-' + parsed.d;
+    } else {
+      const d = new Date(timeRaw);
+      if (!isNaN(d.getTime())) {
+        hour = d.getHours();
+        dateStr = d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+      } else {
+        const m = (timeRaw||'').toString().match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (m) {
+          let h = parseInt(m[1], 10);
+          const ap = (m[3]||'').toUpperCase();
+          if (ap === 'PM' && h !== 12) h += 12;
+          if (ap === 'AM' && h === 12) h = 0;
+          hour = h;
+        }
+        const dm = (timeRaw||'').toString().match(/(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}\/\d{2,4})/);
+        if (dm) dateStr = dm[1];
+      }
+    }
+    if (hour === null) { unmatchedTime++; return; }
+
+    newLogs[repKey].push({ hour, disposition: dispRaw, isDM: isDMDisposition(dispRaw), ts: Date.now(), date: dateStr || 'unknown' });
+    parsedCount++;
+  });
+
+  Object.keys(newLogs).forEach(k => saveCallLog(k, newLogs[k]));
+  renderAnalytics();
+  showToast(`Loaded ${parsedCount} calls${unmatchedRep||unmatchedTime ? ` (${unmatchedRep} unmatched reps, ${unmatchedTime} unreadable times skipped)` : ''}`);
+}
+
+function groupByDate(log) {
+  const days = {};
+  log.forEach(c => {
+    const d = c.date || 'unknown';
+    if (d === 'unknown') return;
+    if (!days[d]) days[d] = [];
+    days[d].push(c);
+  });
+  return days;
+}
+function bucketEntries(entries) {
+  const buckets = {};
+  for (let h = HOUR_START; h < HOUR_END; h++) buckets[h] = { total: 0, dm: 0 };
+  entries.forEach(c => {
+    if (c.hour >= HOUR_START && c.hour < HOUR_END) {
+      buckets[c.hour].total++;
+      if (c.isDM) buckets[c.hour].dm++;
+    }
+  });
+  return buckets;
+}
+// For each hour, how many distinct days did it rank in that day's top-3 DM rate hours
+function computeHotZoneConsistency(log) {
+  const days = groupByDate(log);
+  const dayKeys = Object.keys(days);
+  const hitCount = {}; for (let h = HOUR_START; h < HOUR_END; h++) hitCount[h] = 0;
+  let countedDays = 0;
+  dayKeys.forEach(dk => {
+    const buckets = bucketEntries(days[dk]);
+    const rates = Object.keys(buckets).map(Number).map(h => ({ hour: h, rate: buckets[h].total ? buckets[h].dm/buckets[h].total : 0, total: buckets[h].total }));
+    const active = rates.filter(r => r.total > 0);
+    if (!active.length) return;
+    countedDays++;
+    active.sort((a,b) => b.rate - a.rate).slice(0,3).forEach(r => hitCount[r.hour]++);
+  });
+  return { hitCount, countedDays };
+}
+// For each hour, how many distinct days was total dial volume 0 (dead) or well below that day's average (slow)
+function computeSlowConsistency(log) {
+  const days = groupByDate(log);
+  const dayKeys = Object.keys(days);
+  const slowCount = {}, deadCount = {};
+  for (let h = HOUR_START; h < HOUR_END; h++) { slowCount[h] = 0; deadCount[h] = 0; }
+  let countedDays = 0;
+  dayKeys.forEach(dk => {
+    const buckets = bucketEntries(days[dk]);
+    const totals = Object.keys(buckets).map(Number).map(h => buckets[h].total);
+    const activeTotals = totals.filter(t => t > 0);
+    if (!activeTotals.length) return;
+    countedDays++;
+    const mean = activeTotals.reduce((a,b) => a+b, 0) / activeTotals.length;
+    Object.keys(buckets).map(Number).forEach(h => {
+      const t = buckets[h].total;
+      if (t === 0) deadCount[h]++;
+      else if (t < mean * 0.5) slowCount[h]++;
+    });
+  });
+  return { slowCount, deadCount, countedDays };
+}
+
+function renderAnalytics() {
+  renderRepSelectorAnalytics();
+  const log = getCombinedCallLog();
+  const buckets = bucketEntries(log);
+  const hours = Object.keys(buckets).map(Number);
+
+  const dmRates = hours.map(h => ({ hour: h, rate: buckets[h].total ? buckets[h].dm/buckets[h].total : 0, total: buckets[h].total, dm: buckets[h].dm }));
+  const maxRate = Math.max(...dmRates.map(x => x.rate), 0.0001);
+  const hotZones = dmRates.filter(x => x.total > 0).sort((a,b) => b.rate - a.rate || b.dm - a.dm).slice(0,3).map(x => x.hour);
+
+  const { hitCount, countedDays } = computeHotZoneConsistency(log);
+
+  const totalDials = log.length;
+  const totalDM = log.filter(c => c.isDM).length;
+  const overallRate = totalDials ? Math.round((totalDM/totalDials)*100) : 0;
+  const bestHour = hotZones.length ? hourLabel(hotZones[0]) + '–' + hourLabel(hotZones[0]+1) : '—';
+  const bestConsistency = hotZones.length && countedDays >= 2 ? `${hitCount[hotZones[0]]} of ${countedDays} days` : (countedDays < 2 ? 'Log 2+ days to see trend' : '—');
+
+  document.getElementById('analyticsSummary').innerHTML = `
+    <div class="summary-box"><div class="summary-label">TOTAL DIALS LOGGED</div><div class="summary-val">${totalDials}</div></div>
+    <div class="summary-box"><div class="summary-label">OVERALL DM RATE</div><div class="summary-val">${overallRate}% (${totalDM} DM contacts)</div></div>
+    <div class="summary-box"><div class="summary-label">TOP HOT ZONE</div><div class="summary-val">${bestHour}</div></div>
+    <div class="summary-box"><div class="summary-label">HOT ZONE CONSISTENCY</div><div class="summary-val">${bestConsistency}</div></div>
+  `;
+
+  document.getElementById('hourlyBreakdown').innerHTML = hours.map(h => {
+    const b = buckets[h];
+    const rate = b.total ? Math.round((b.dm/b.total)*100) : 0;
+    const barPct = b.total ? Math.max((b.dm/b.total)/maxRate*100, 4) : 0;
+    const isHot = hotZones.includes(h) && b.total > 0;
+    const consistencyNote = isHot && countedDays >= 2 ? ` · ${hitCount[h]}/${countedDays} days` : '';
+    const badge = isHot ? `<span class="hot-zone-badge">HOT ZONE${consistencyNote}</span>` : '';
+    return `
+      <div class="hour-row ${isHot ? 'hot-zone' : ''}">
+        <div class="hour-label">${hourLabel(h)}${badge}</div>
+        <div class="hour-bar-track"><div class="hour-bar-fill" style="width:${barPct}%;background:${isHot?'#f59e0b':'#2563eb'}"></div></div>
+        <div class="hour-dm-pct">${b.total ? rate+'%' : '—'}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ===================== DIAL VOLUME / SLOW PERIODS ===================== */
+let nullsRepFilter = 'all';
+function renderRepSelectorNulls() {
+  const el = document.getElementById('repSelectorNulls');
+  let html = `<button class="rep-chip ${nullsRepFilter==='all'?'active':''}" onclick="setNullsRep('all')">All Reps</button>`;
+  html += Object.keys(REPS).map(k =>
+    `<button class="rep-chip ${nullsRepFilter===k?'active':''}" onclick="setNullsRep('${k}')">${REPS[k].name}</button>`
+  ).join('');
+  el.innerHTML = html;
+}
+function setNullsRep(key) { nullsRepFilter = key; renderRepSelectorNulls(); renderNulls(); }
+
+function renderNulls() {
+  renderRepSelectorNulls();
+  const log = getCallLogForFilter(nullsRepFilter);
+  const buckets = bucketEntries(log);
+  const hours = Object.keys(buckets).map(Number);
+  const totals = hours.map(h => buckets[h].total);
+  const maxTotal = Math.max(...totals, 1);
+  const activeTotals = totals.filter(t => t > 0);
+  const mean = activeTotals.length ? activeTotals.reduce((a,b)=>a+b,0)/activeTotals.length : 0;
+
+  const { slowCount, deadCount, countedDays } = computeSlowConsistency(log);
+
+  const deadHours = hours.filter(h => buckets[h].total === 0);
+  const slowHours = hours.filter(h => buckets[h].total > 0 && buckets[h].total < mean * 0.5);
+  const worstHour = [...deadHours, ...slowHours].sort((a,b) => buckets[a].total - buckets[b].total)[0];
+
+  document.getElementById('nullsSummary').innerHTML = `
+    <div class="summary-box"><div class="summary-label">TOTAL DIALS LOGGED</div><div class="summary-val">${log.length}</div></div>
+    <div class="summary-box"><div class="summary-label">AVG DIALS / ACTIVE HOUR</div><div class="summary-val">${mean ? mean.toFixed(1) : '—'}</div></div>
+    <div class="summary-box"><div class="summary-label">DEAD HOURS</div><div class="summary-val">${deadHours.length ? deadHours.map(h=>hourLabel(h)).join(', ') : 'None — full coverage'}</div></div>
+    <div class="summary-box"><div class="summary-label">SLOWEST HOUR</div><div class="summary-val">${worstHour !== undefined ? hourLabel(worstHour)+'–'+hourLabel(worstHour+1) : '—'}</div></div>
+  `;
+
+  document.getElementById('nullsBreakdown').innerHTML = hours.map(h => {
+    const t = buckets[h].total;
+    const isDead = t === 0;
+    const isSlow = !isDead && t < mean * 0.5;
+    const barPct = isDead ? 100 : Math.max((t/maxTotal)*100, 4);
+    const rowClass = isDead ? 'null-row' : (isSlow ? 'hot-zone' : '');
+    const barColor = isDead ? '#1a1a2e' : (isSlow ? '#ef4444' : '#2563eb');
+    let badge = '';
+    if (isDead) {
+      const note = countedDays >= 2 ? ` · ${deadCount[h]}/${countedDays} days` : '';
+      badge = `<span class="null-badge">DEAD${note}</span>`;
+    } else if (isSlow) {
+      const note = countedDays >= 2 ? ` · ${slowCount[h]}/${countedDays} days` : '';
+      badge = `<span class="null-badge" style="background:#f59e0b22;color:#fbbf24;border-color:#f59e0b55">SLOW${note}</span>`;
+    }
+    return `
+      <div class="hour-row ${rowClass}">
+        <div class="hour-label">${hourLabel(h)}${badge}</div>
+        <div class="hour-bar-track"><div class="hour-bar-fill" style="width:${barPct}%;background:${isDead?'#1a1a2e':barColor}"></div></div>
+        <div class="hour-dm-pct">${t} dial${t===1?'':'s'}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ===================== MOTIVATION ===================== */
+function newQuote() {
+  const [text, attr] = QUOTES[Math.floor(Math.random()*QUOTES.length)];
+  document.getElementById('quoteText').textContent = '“' + text + '”';
+  document.getElementById('quoteAttr').textContent = '— ' + attr;
+}
+function postMsg() {
+  const val = document.getElementById('teamMsg').value.trim();
+  if (!val) return;
+  const msgs = JSON.parse(localStorage.getItem('ll_messages')||'[]');
+  msgs.unshift({ text: val, ts: new Date().toLocaleString() });
+  localStorage.setItem('ll_messages', JSON.stringify(msgs.slice(0,20)));
+  document.getElementById('teamMsg').value = '';
+  renderMessages();
+}
+function renderMessages() {
+  const msgs = JSON.parse(localStorage.getItem('ll_messages')||'[]');
+  document.getElementById('msgList').innerHTML = msgs.map(m =>
+    `<div style="padding:8px 0;border-bottom:1px solid #14141f"><div style="font-size:12px;color:#cbd5e1">${m.text}</div><div style="font-size:9px;color:#334155;margin-top:3px">${m.ts}</div></div>`
+  ).join('');
+}
+
+/* ===================== TOAST ===================== */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(()=> t.style.display='none', 2200);
+}
+
+/* ===================== INIT ===================== */
+function init() {
+  checkOAuthRedirect();
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+  renderRepSelectors();
+  renderPeriodTabs();
+  renderDashboard();
+  populateEnterForm();
+  populateQuickLogSelectors();
+  initSalesforceUI();
+  initZapierUI();
+  if (localStorage.getItem('ll_zap_autosync') === 'true' && localStorage.getItem('ll_zap_sheet_url')) {
+    syncFromSheet();
+  }
+  newQuote();
+}
+init();
+</script>
+</body>
+</html>
