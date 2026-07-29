@@ -387,6 +387,12 @@ const REPS = {
     quota: { closes: 7, heldDemos: 21 },
     dialsPerDM: 8, dmsPerSet: 2, holdRate: 0.60, setsPerClose: 4,
     dailyDialTarget: 50
+  },
+  leilani: {
+    name: 'Leilani Olson', role: 'Senior SDR',
+    quota: { closes: 7, heldDemos: 21 },
+    dialsPerDM: 8, dmsPerSet: 3, holdRate: 0.52, setsPerClose: 5,
+    dailyDialTarget: 50
   }
 };
 for (const k in REPS) REPS[k].dialsPerSet = REPS[k].dialsPerDM * REPS[k].dmsPerSet;
