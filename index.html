@@ -130,6 +130,7 @@
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
   <div class="rep-selector" id="repSelector"></div>
+  <div class="train-desc" id="sharedSyncStatus" style="margin-bottom:10px"></div>
 
   <div class="section-label">QUOTA · THIS MONTH</div>
   <div class="card">
@@ -770,6 +771,58 @@ function applySheetRows(rows) {
   return matched;
 }
 
+/* ===================== SHARED KPI STORE (STORAGE BY ZAPIER) ===================== */
+// A Zap runs on a schedule, pulls each Salesforce report, and writes values into Storage by
+// Zapier keyed as "metric|Full Rep Name" (e.g. "dials|Madi Hannett", "closes|Leilani Olson").
+// Every visitor's browser reads this same shared store on load — no login, no per-device setup.
+// This is baked in so it works automatically for the whole team without any config screen.
+const STORAGE_SECRET = '52f48776-974e-450b-b366-0f0e7d4125cb';
+const STORAGE_READ_URL = `https://store.zapier.com/api/records?secret=${STORAGE_SECRET}`;
+
+async function syncFromSharedStore() {
+  const statusEl = document.getElementById('sharedSyncStatus');
+  try {
+    const res = await fetch(STORAGE_READ_URL);
+    if (!res.ok) { if (statusEl) statusEl.textContent = ''; return; }
+    const data = await res.json();
+
+    const repNameMap = {};
+    Object.keys(REPS).forEach(k => repNameMap[REPS[k].name.toLowerCase()] = k);
+    const firstNameMap = {};
+    Object.keys(REPS).forEach(k => firstNameMap[REPS[k].name.split(' ')[0].toLowerCase()] = k);
+
+    let matched = 0;
+    Object.keys(data).forEach(storeKey => {
+      const parts = storeKey.split('|');
+      if (parts.length !== 2) return;
+      const metric = parts[0].trim().toLowerCase();
+      const nameRaw = parts[1].trim().toLowerCase();
+      if (!METRIC_LABELS[metric]) return;
+
+      let repKey = repNameMap[nameRaw] || null;
+      if (!repKey) { const first = nameRaw.split(' ')[0]; repKey = firstNameMap[first]; }
+      if (!repKey) return;
+
+      const num = parseInt(data[storeKey], 10);
+      if (isNaN(num)) return;
+
+      const d = loadData(repKey);
+      d[metric] = num;
+      saveData(repKey, d);
+      matched++;
+    });
+
+    if (matched > 0) {
+      renderDashboard();
+      if (statusEl) statusEl.textContent = `Live · synced ${new Date().toLocaleString()}`;
+    } else if (statusEl) {
+      statusEl.textContent = '';
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
 /* ===================== SALESFORCE LIVE CONNECT ===================== */
 const SF_API_VERSION = 'v59.0';
 const METRIC_LABELS = { dials: 'Dials', dms: 'Decision Makers', sets: 'Sets', resets: 'Resets', demos: 'Held Demos', closes: 'Closes' };
@@ -1296,6 +1349,7 @@ function init() {
   if (localStorage.getItem('ll_sf_token') && localStorage.getItem('ll_sf_instance') && Object.keys(JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}')).length) {
     syncSalesforce();
   }
+  syncFromSharedStore();
   newQuote();
 }
 init();
