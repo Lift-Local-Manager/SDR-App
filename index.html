@@ -162,11 +162,13 @@
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <div class="conv-chain">
-    <div class="conv-title">YOUR CONVERSION RATES</div>
-    <div class="conv-row"><span class="conv-label">Dials → DM</span><span class="conv-val" id="crDM"></span></div>
-    <div class="conv-row"><span class="conv-label">DM → Set</span><span class="conv-val" id="crSet"></span></div>
-    <div class="conv-row"><span class="conv-label">Set hold rate</span><span class="conv-val" id="crHold"></span></div>
-    <div class="conv-row"><span class="conv-label">Sets → Close</span><span class="conv-val" id="crClose"></span></div>
+    <div class="conv-title">CONVERSION RATES · TARGET VS ACTUAL</div>
+    <div class="conv-row"><span class="conv-label">Dials → DM</span><span class="conv-val">Target <span id="crDM"></span> · Actual <span id="crDMActual"></span></span></div>
+    <div class="conv-row"><span class="conv-label">DM → Set</span><span class="conv-val">Target <span id="crSet"></span> · Actual <span id="crSetActual"></span></span></div>
+    <div class="conv-row"><span class="conv-label">Set hold rate</span><span class="conv-val">Target <span id="crHold"></span> · Actual <span id="crHoldActual"></span></span></div>
+    <div class="conv-row"><span class="conv-label">Sets → Close</span><span class="conv-val">Target <span id="crClose"></span> · Actual <span id="crCloseActual"></span></span></div>
+    <div class="divider"></div>
+    <div class="train-desc" style="margin-top:2px">"Actual" is computed from this rep's month-to-date entered totals. Once there's enough real data, update their profile in REPS to match reality instead of the starting assumption.</div>
   </div>
 </div>
 
@@ -553,6 +555,11 @@ function renderDashboard() {
   document.getElementById('crSet').textContent = `1 per ${rep.dmsPerSet} DMs`;
   document.getElementById('crHold').textContent = `${Math.round(rep.holdRate*100)}%`;
   document.getElementById('crClose').textContent = `1 per ${rep.setsPerClose} sets`;
+
+  document.getElementById('crDMActual').textContent = data.dms > 0 ? `1 per ${(data.dials / data.dms).toFixed(1)} dials` : 'no data yet';
+  document.getElementById('crSetActual').textContent = data.sets > 0 ? `1 per ${(data.dms / data.sets).toFixed(1)} DMs` : 'no data yet';
+  document.getElementById('crHoldActual').textContent = data.sets > 0 ? `${Math.round((data.demos / data.sets) * 100)}%` : 'no data yet';
+  document.getElementById('crCloseActual').textContent = data.closes > 0 ? `1 per ${(data.sets / data.closes).toFixed(1)} sets` : 'no data yet';
 }
 
 function renderPeriodTabs() {
@@ -1285,6 +1292,9 @@ function init() {
   initZapierUI();
   if (localStorage.getItem('ll_zap_autosync') === 'true' && localStorage.getItem('ll_zap_sheet_url')) {
     syncFromSheet();
+  }
+  if (localStorage.getItem('ll_sf_token') && localStorage.getItem('ll_sf_instance') && Object.keys(JSON.parse(localStorage.getItem('ll_sf_reportmap') || '{}')).length) {
+    syncSalesforce();
   }
   newQuote();
 }
